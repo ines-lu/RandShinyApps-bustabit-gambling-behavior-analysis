@@ -1,0 +1,165 @@
+
+1.1.1 load dataset and see the raw data
+
+```{r}
+library('tidyverse')
+bustabit <- read_csv('bustabit.csv')
+head(bustabit)
+```
+1.1.2 check the data type
+
+```{r}
+str(bustabit)
+```
+1.2.1 create new variables
+```{r}
+# Create the new variables 
+bustabit_new <- bustabit %>% 
+  mutate(CashedOut = ifelse(is.na(CashedOut), BustedAt + .01, CashedOut),
+         Profit = ifelse(is.na(Profit), 0, Profit),
+         Losses = ifelse(Profit == 0, -1*Bet, 0),
+         GameWon = ifelse(Profit == 0, 0, 1),
+         GameLost = ifelse(Profit == 0, 1, 0))
+
+# Look at the first five rows of the new data
+head(bustabit_new)
+
+```
+1.2.2 data type
+```{r}
+str(bustabit_new)
+```
+1.2.3 simple statistics
+```{r}
+summary(bustabit_new)
+```
+1.2.4 save data
+```{r}
+save(bustabit_new, file = "bustabit_new.RData")
+```
+
+
+2.1.1 group by players
+```{r}
+
+# Group by players to create per-player summary statistics
+bustabit_player <- bustabit_new %>%
+  group_by(Username) %>%
+  summarize(AverageCashedOut = mean(CashedOut), 
+            AverageBet = mean(Bet),
+            TotalProfit = sum(Profit),
+            TotalLosses = sum(Losses), 
+            GamesWon = sum(GameWon),
+            GamesLost = sum(GameLost))
+
+# View the first five rows of the data
+head(bustabit_player);
+
+```
+
+
+2.1.2 data type
+```{r}
+str(bustabit_player)
+```
+2.1.3 simple statistics
+```{r}
+summary(bustabit_player)
+```
+2.1.4 save
+```{r}
+save(bustabit_player, file = "bustabit_player.RData")
+```
+
+
+
+
+2.2.1 standardization
+
+```{r}
+# Create the mean-sd standardization function
+mean_sd_standard <- function(x) {
+    z=(x-mean(x))/sd(x)
+}
+
+bustabit_standardized <- bustabit_player %>%     # Apply the function 
+    mutate_if(is.numeric, mean_sd_standard)
+
+head(bustabit_standardized)   
+```
+2.2.2 simple statistics
+```{r}
+summary(bustabit_standardized)
+```
+
+```{r}
+save(bustabit_standardized, file = "bustabit_standardized.RData")
+```
+
+
+clustering using k means
+```{r}
+# Choose 20211101 as our random seed
+set.seed(20211101)
+
+# Cluster the players using kmeans with five clusters
+cluster_solution <- bustabit_standardized %>%
+                    select(-Username) %>%
+                    kmeans(centers = 5)
+
+# Store the cluster assignments back into the clustering data frame object
+bustabit_player$cluster <- factor(cluster_solution$cluster)
+
+# Look at the distribution of cluster assignments
+table(bustabit_player$cluster)
+```
+
+
+```{r}
+# Group by the cluster assignment and calculate averages
+bustabit_clus_avg <- bustabit_player %>%
+    group_by(cluster) %>%
+    summarize_if(funs(is.numeric), mean)
+
+# View the resulting table
+bustabit_clus_avg
+```
+
+
+```{r}
+save(bustabit_clus_avg, file = "bustabit_clus_avg.RData")
+```
+
+
+
+analyzing the result
+```{r}
+# Assign cluster names to clusters 1 through 5 in order
+cluster_names <- c(
+    "Risky Commoners",
+    "High Rollers",
+    "Risk Takers",
+    "Cautious Commoners",
+    "Strategic Addicts"
+)
+
+# Append the cluster names to the cluster means table
+bustabit_clus_avg_named <- bustabit_clus_avg %>%
+    cbind(Name = cluster_names)
+
+# View the cluster means table with your appended cluster names
+bustabit_clus_avg_named
+```
+
+
+```{r}
+save(bustabit_clus_avg, file = "bustabit_clus_avg_named.RData")
+```
+
+
+```{r}
+```
+
+
+
+
